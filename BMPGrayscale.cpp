@@ -157,7 +157,7 @@ void Pix24(dword height, dword width, FILE* input, FILE* output, byte is32) {
 	}
 }
 
-//48 Bit per pixel: Changig all 'byte' variables in pixel to 'word' (2-byte) variables
+//48 or 64 Bit per pixel: Changing all 'byte' variables in pixel to 'word' (2-byte) variables
 void Pix48(dword height, dword width, FILE* input, FILE* output, byte is64) {
 	pixel_48 pix;
 	word gray;
