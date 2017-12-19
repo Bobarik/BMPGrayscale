@@ -173,25 +173,3 @@ void Pix48(dword height, dword width, FILE* input, FILE* output, byte is64) {
 		fseek(input, additionalBytes, SEEK_CUR);
 	}
 }
-
-//64 Bit per pixel: Adding alpha-channel. No need for additional bytes in the end (number of bytes is always multiple of 4)
-void Pix64(dword height, dword width, FILE* input, FILE* output) {
-	pixel_48 pix;
-	word gray;
-	for (int i = 0; i < height; i++) {
-		for (int j = 0; j < width; j++) {
-			fread(&pix.b, sizeof(word), 1, input);
-			fread(&pix.g, sizeof(word), 1, input);
-			fread(&pix.r, sizeof(word), 1, input);
-			fread(&pix.alpha, sizeof(word), 1, input);
-			gray = LumaGray(pix.r, pix.g, pix.b); // Using "Luma" formula to determine gray for each pixel.
-			pix.r = gray;
-			pix.b = gray;
-			pix.g = gray;
-			fwrite(&pix.b, sizeof(word), 1, output);
-			fwrite(&pix.g, sizeof(word), 1, output);
-			fwrite(&pix.r, sizeof(word), 1, output);
-			fwrite(&pix.alpha, sizeof(word), 1, output);
-		}
-	}
-}
