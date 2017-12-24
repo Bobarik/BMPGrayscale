@@ -7,29 +7,78 @@
 #include <conio.h>
 #include "BMPGrayscale.h"
 
+BYTE findIn(int argc, char **argv) {
+	if (strncmp(argv[1], "--input", 7)) {
+		if (argc == 2 || strncmp(argv[2], "--input", 7)) {
+			return 0;
+		} else {
+			return 2;
+		}
+	} else {
+		return 1;
+	}
+}
+
+BYTE findOut(int argc, char **argv) {
+	if (strncmp(argv[1], "--output", 8)) {
+		if (argc == 2 || strncmp(argv[2], "--output", 8)) {
+			return 0;
+		}
+		else {
+			return 2;
+		}
+	}
+	else {
+		return 1;
+	}
+}
+
 int main(int argc, char** argv) {
 	if (argc >= 2) {
 		FILE* input;
-		fopen_s(&input, argv[1], "rb");
+		FILE* output;
+		char* cinput;
+		char* coutput;
+		BYTE inIn = findIn(argc, argv);
+		BYTE outIn = findOut(argc, argv);
 
+		if (inIn != 0 && outIn != 0) {
+			cinput = (char*)malloc(sizeof(char) * (strlen(argv[inIn]) - 7));
+			memcpy(cinput, argv[inIn] + 8, strlen(argv[inIn]) - 7);
+			fopen_s(&input, cinput, "rb");
+
+			coutput = (char*)malloc(sizeof(char) * (strlen(argv[outIn]) - 8));
+			memcpy(coutput, argv[outIn] + 9, strlen(argv[outIn]) - 8);
+			fopen_s(&output, coutput, "wb");
+		} else {
+			if (inIn == 0) {
+				printf("Wrong arguments: no argument with \"--input\"");
+				_getch();
+				exit(WRONG_INPUT);
+			} else {
+				cinput = (char*)malloc(sizeof(char) * (strlen(argv[inIn]) - 7));
+				memcpy(cinput, argv[inIn] + 8, strlen(argv[inIn]) - 7);
+				fopen_s(&input, cinput, "rb");
+
+				coutput = (char*)malloc(sizeof(char) * (strlen(cinput) + 5));
+				memcpy(coutput, "Gray", 4);
+				memcpy(coutput + 4, cinput, strlen(cinput) + 1);
+				fopen_s(&output, coutput, "wb");
+
+				printf("No arguments with \"--output\". Your output file will be: ");
+				puts(coutput);
+				printf("Press any key to continue.\n");
+				_getch();
+			}
+		}
+		
 		if (input == NULL) {
-			printf("Wrong name of file.");
+			printf("Wrong name of input file.");
 			_getch();
 			exit(WRONG_NAME_OF_FILE);
 		}
 
 		InfoBMP BMP = GetInfoBMP(input);
-
-		FILE* output;
-		if (argc == 2) {
-			char* coutput = (char*)malloc(sizeof(char) * (strlen(argv[1]) + 5));
-			memcpy(coutput, "Gray", 4);
-			memcpy(coutput + 4, argv[1], strlen(argv[1]) + 1);
-			fopen_s(&output, coutput, "wb");
-		}
-		else {
-			fopen_s(&output, argv[2], "wb");
-		}
 
 		rewind(input);
 
@@ -52,11 +101,10 @@ int main(int argc, char** argv) {
 				Pix48(BMP.height, BMP.width, input, output, 1);
 				break;
 			}
-		}
-		else {
+		} else {
 			if (BMP.bitCount <= 8 || BMP.colorsUsed > 0) { //Changing table of colors to grayscale.
 				pixel_24 color;
-				word ColCount = (BMP.colorsUsed != 0 ? BMP.colorsUsed : (word)pow(2, BMP.bitCount));
+				WORD ColCount = (BMP.colorsUsed != 0 ? BMP.colorsUsed : (WORD)pow(2, BMP.bitCount));
 				copyInfo(BMP.byteInfoSize, input, output);
 				for (int i = 0; i < ColCount; i++) {
 					color = Px24(input, (BMP.byteInfoSize >= 40 ? 1 : 0));
@@ -72,8 +120,7 @@ int main(int argc, char** argv) {
 		_getch();
 
 		return 0;
-	}
-	else {
+	} else {
 		printf("Wrong number of arguments.");
 		_getch();
 		exit(WRONG_NAME_OF_FILE);
