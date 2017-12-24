@@ -55,6 +55,7 @@ void copyPixelStorage(InfoBMP BMP, FILE* input, FILE* output) {
 	if (add != NULL) { // If memory was allocated, reading it whole.
 		fread(add, sizeof(BYTE), (BMP.byteSize - BMP.pixelAddress), input);
 		fwrite(add, sizeof(BYTE), (BMP.byteSize - BMP.pixelAddress), output);
+		free(add);
 	} else { //If memory wasn't allocated, reading it with DWORD.
 		DWORD add;
 		for (DWORD i = BMP.pixelAddress; i < BMP.bitCount; i += 4) {
