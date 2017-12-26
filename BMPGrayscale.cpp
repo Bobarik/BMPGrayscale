@@ -28,7 +28,7 @@ InfoBMP GetInfoBMP(FILE* input) {
 
 	fread(&BMP.width, sizeof(WORD), (BMP.byteInfoSize == 12 ? 1 : 2), input); //Width and height of picture
 	fread(&BMP.height, sizeof(WORD), (BMP.byteInfoSize == 12 ? 1 : 2), input);
-
+	
 	fseek(input, 28, SEEK_SET);
 	fread(&BMP.bitCount, sizeof(WORD), 1, input); // Amount of bits per pixel.
 
@@ -50,20 +50,18 @@ void copyInfo(WORD infoSize, FILE* input, FILE* output) {
 
 void copyPixelStorage(InfoBMP BMP, FILE* input, FILE* output) {
 	BYTE* add = NULL;
-	add = (BYTE*)malloc(sizeof(BYTE) * (BMP.byteSize - BMP.pixelAddress)); //Trying to allocate memory for whole pixel storage.
+	int addSize = BMP.byteSize - BMP.pixelAddress;
 	fseek(input, BMP.pixelAddress, SEEK_SET);
-	if (add != NULL) { // If memory was allocated, reading it whole.
-		fread(add, sizeof(BYTE), (BMP.byteSize - BMP.pixelAddress), input);
-		fwrite(add, sizeof(BYTE), (BMP.byteSize - BMP.pixelAddress), output);
-		free(add);
-	} else { //If memory wasn't allocated, reading it with DWORD.
-		DWORD add;
-		for (DWORD i = BMP.pixelAddress; i < BMP.bitCount; i += 4) {
-			fread(&add, sizeof(DWORD), 1, input);
-			fwrite(&add, sizeof(DWORD), 1, output);
-		}
+
+	for (; add == NULL; addSize --) {
+		add = (BYTE*)malloc(sizeof(BYTE) * (BMP.byteSize - BMP.pixelAddress)); //Trying to allocate memory for whole pixel storage.
 	}
-	
+	addSize ++; //Compensating for addSize-- on the last iteration.
+	for (int i = BMP.byteSize - BMP.pixelAddress; i > 0; i -= addSize) {
+		fread(add, (addSize < i ? sizeof(add) : sizeof(BYTE) * i), 1, input);
+		fwrite(add, (addSize < i ? sizeof(add) : sizeof(BYTE) * i), 1, output);
+	}
+	free(add);
 }
 
 void PixWrite24(FILE* output, pixel_24 pix, BYTE is32) {

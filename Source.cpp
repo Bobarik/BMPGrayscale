@@ -7,30 +7,11 @@
 #include <conio.h>
 #include "BMPGrayscale.h"
 
-BYTE findIn(int argc, char **argv) {
-	if (strncmp(argv[1], "--input", 7)) {
-		if (argc == 2 || strncmp(argv[2], "--input", 7)) {
-			return 0;
-		} else {
-			return 2;
-		}
-	} else {
-		return 1;
-	}
-}
-
-BYTE findOut(int argc, char **argv) {
-	if (strncmp(argv[1], "--output", 8)) {
-		if (argc == 2 || strncmp(argv[2], "--output", 8)) {
-			return 0;
-		}
-		else {
-			return 2;
-		}
-	}
-	else {
-		return 1;
-	}
+BYTE findArg(int argc, char **argv, char* arg) {
+	DWORD argLen = strlen(arg);
+	int i = 1;
+	for (; i < argc && strncmp(argv[i], arg, argLen); i++);
+	return (i % argc); // return 0 when i == argc.
 }
 
 int main(int argc, char** argv) {
@@ -39,8 +20,8 @@ int main(int argc, char** argv) {
 		FILE* output;
 		char* cinput;
 		char* coutput;
-		BYTE inIn = findIn(argc, argv);
-		BYTE outIn = findOut(argc, argv);
+		BYTE inIn = findArg(argc, argv, "--input");
+		BYTE outIn = findArg(argc, argv, "--output");
 
 		if (inIn != 0 && outIn != 0) {
 			cinput = (char*)malloc(sizeof(char) * (strlen(argv[inIn]) - 7));
