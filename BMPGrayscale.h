@@ -26,8 +26,7 @@ struct pixel_48 { //Using 3 or 4 words (6 or 8 bytes) for pixel
 	WORD alpha;
 };
 
-struct InfoBMP
-{
+struct InfoBMP {
 	WORD endian;
 	DWORD byteSize;
 	DWORD pixelAddress;
@@ -38,9 +37,19 @@ struct InfoBMP
 	DWORD Compression;
 };
 
+struct IOFiles {
+	FILE* input;
+	FILE* output;
+};
+
 DWORD LumaGray(DWORD, DWORD, DWORD);
 
-InfoBMP GetInfoBMP(FILE*);
+BYTE findArg(int, char**, char*);
+
+IOFiles getInOut(int, char**);
+InfoBMP getInfoBMP(FILE*);
+void monochromize(IOFiles, InfoBMP);
+
 void copyInfo(WORD, FILE*, FILE*);
 void copyPixelStorage(InfoBMP, FILE*, FILE*);
 
@@ -48,4 +57,5 @@ void Pix16(DWORD, DWORD, FILE*, FILE*);
 void Pix24(DWORD, DWORD, FILE*, FILE*, BYTE);
 void Pix48(DWORD, DWORD, FILE*, FILE*, BYTE);
 void PixWrite24(FILE*, pixel_24, BYTE);
+
 pixel_24 Px24(FILE*, BYTE);

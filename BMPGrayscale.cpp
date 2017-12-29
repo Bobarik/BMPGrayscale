@@ -1,16 +1,80 @@
 #include "BMPGrayscale.h"
-#include <stdio.h>
-#include <stdlib.h>
 #include <conio.h>
 #include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 // Using "Luma" formula to count the shade of gray for each pixel.
 DWORD LumaGray(DWORD r, DWORD g, DWORD b) {
 	return (DWORD)(b * 0.0722 + r * 0.2125 + g * 0.7151);
 }
 
+BYTE findArg(int argc, char **argv, char* arg) {
+	DWORD argLen = strlen(arg);
+	int i = 1;
+	for (; i < argc && strncmp(argv[i], arg, argLen); i++);
+	return (i % argc); // return 0 when i == argc.
+}
+
+//Finding input and output files from arguments.
+IOFiles getInOut(int argc, char** argv) {
+	if (argc >= 2) {
+		IOFiles IO;
+		char* cinput;
+		char* coutput;
+		BYTE inIn = findArg(argc, argv, "--input");
+		BYTE outIn = findArg(argc, argv, "--output");
+
+		if (inIn != 0 && outIn != 0) {
+			cinput = (char*)malloc(sizeof(char) * (strlen(argv[inIn]) - 7));
+			memcpy(cinput, argv[inIn] + 8, strlen(argv[inIn]) - 7);
+			fopen_s(&IO.input, cinput, "rb");
+
+			coutput = (char*)malloc(sizeof(char) * (strlen(argv[outIn]) - 8));
+			memcpy(coutput, argv[outIn] + 9, strlen(argv[outIn]) - 8);
+			fopen_s(&IO.output, coutput, "wb");
+		} else {
+			if (inIn == 0) {
+				printf("Wrong arguments: no argument with \"--input\"");
+				_getch();
+				exit(WRONG_INPUT);
+			} else {
+				cinput = (char*)malloc(sizeof(char) * (strlen(argv[inIn]) - 7));
+				memcpy(cinput, argv[inIn] + 8, strlen(argv[inIn]) - 7);
+				fopen_s(&IO.input, cinput, "rb");
+
+				coutput = (char*)malloc(sizeof(char) * (strlen(cinput) + 5));
+				memcpy(coutput, "Gray", 4);
+				memcpy(coutput + 4, cinput, strlen(cinput) + 1);
+				fopen_s(&IO.output, coutput, "wb");
+
+				printf("No arguments with \"--output\". Your output file will be: ");
+				puts(coutput);
+				printf("Press any key to continue.\n");
+				_getch();
+			}
+		}
+
+		free(cinput);
+		free(coutput);
+
+		if (IO.input == NULL) {
+			printf("Wrong name of input file.");
+			_getch();
+			exit(WRONG_NAME_OF_FILE);
+		}
+
+		return IO;
+	} else {
+		printf("Wrong number of arguments.");
+		_getch();
+		exit(WRONG_NAME_OF_FILE);
+	}
+}
+
 //Reading Info to create InfoBMP variable
-InfoBMP GetInfoBMP(FILE* input) {
+InfoBMP getInfoBMP(FILE* input) {
 	InfoBMP BMP;
 
 	fread(&BMP.endian, sizeof(WORD), 1, input); // if it's BMP
@@ -40,6 +104,47 @@ InfoBMP GetInfoBMP(FILE* input) {
 	return BMP;
 }
 
+//Structurization of all methods of monochromization.
+void monochromize(IOFiles inOut, InfoBMP BMP) {
+	rewind(inOut.input);
+	if ((BMP.colorsUsed == 0) && (BMP.bitCount > 8) || (BMP.byteInfoSize == 12)) { // Changing two-dimensinoal array for pixel.
+		copyInfo(BMP.byteInfoSize, inOut.input, inOut.output);
+		fseek(inOut.input, BMP.pixelAddress, SEEK_SET);
+		switch (BMP.bitCount) { //grabbing each pixel and changing it.
+		case 16:
+			Pix16(BMP.height, BMP.width, inOut.input, inOut.output);
+		case 24:
+			Pix24(BMP.height, BMP.width, inOut.input, inOut.output, 0);
+			break;
+		case 32:
+			Pix24(BMP.height, BMP.width, inOut.input, inOut.output, 1);
+			break;
+		case 48:
+			Pix48(BMP.height, BMP.width, inOut.input, inOut.output, 0);
+			break;
+		case 64:
+			Pix48(BMP.height, BMP.width, inOut.input, inOut.output, 1);
+			break;
+		}
+	} else {
+		if (BMP.bitCount <= 8 || BMP.colorsUsed > 0) { //Changing table of colors to grayscale.
+			pixel_24 color;
+			WORD ColCount = (BMP.colorsUsed != 0 ? BMP.colorsUsed : (WORD)pow(2, BMP.bitCount));
+			copyInfo(BMP.byteInfoSize, inOut.input, inOut.output);
+			for (int i = 0; i < ColCount; i++) {
+				color = Px24(inOut.input, (BMP.byteInfoSize >= 40 ? 1 : 0));
+				PixWrite24(inOut.output, color, (BMP.byteInfoSize >= 40 ? 1 : 0));
+			}
+			copyPixelStorage(BMP, inOut.input, inOut.output);
+		}
+	}
+
+	_fcloseall();
+
+	printf("Monochromization complete.");
+	_getch();
+}
+
 // Copying info from original Header + Info
 void copyInfo(WORD infoSize, FILE* input, FILE* output) {
 	BYTE* add =(BYTE*) malloc(sizeof(BYTE) * infoSize + 14);
@@ -48,6 +153,7 @@ void copyInfo(WORD infoSize, FILE* input, FILE* output) {
 	fwrite(add, sizeof(BYTE), infoSize + 14, output);
 }
 
+// Copying Pixel Storage from original picture. If used, it means that monochromization is completed by the table of colors.
 void copyPixelStorage(InfoBMP BMP, FILE* input, FILE* output) {
 	BYTE* add = NULL;
 	int addSize = BMP.byteSize - BMP.pixelAddress;
@@ -64,6 +170,7 @@ void copyPixelStorage(InfoBMP BMP, FILE* input, FILE* output) {
 	free(add);
 }
 
+// Writing 3- or 4-byte pixel into output.   
 void PixWrite24(FILE* output, pixel_24 pix, BYTE is32) {
 	fwrite(&pix.b, sizeof(BYTE), 1, output);
 	fwrite(&pix.g, sizeof(BYTE), 1, output);
@@ -73,6 +180,7 @@ void PixWrite24(FILE* output, pixel_24 pix, BYTE is32) {
 	}
 }
 
+// Reading and monochromizing 3- or 4- byte pixel.
 pixel_24 Px24(FILE* input, BYTE is32) {
 	pixel_24 pix;
 	BYTE gray;
@@ -89,6 +197,7 @@ pixel_24 Px24(FILE* input, BYTE is32) {
 	return pix;
 }
 
+// Writing 6- or 8-byte pixel into output.
 void PixWrite48(FILE* output, pixel_48 pix, BYTE is64) {
 	fwrite(&pix.b, sizeof(WORD), 1, output);
 	fwrite(&pix.g, sizeof(WORD), 1, output);
@@ -98,6 +207,7 @@ void PixWrite48(FILE* output, pixel_48 pix, BYTE is64) {
 	}
 }
 
+// Reading and monochromizing 6- or 8- byte pixel.
 pixel_48 Px48(FILE* input, BYTE is64) {
 	pixel_48 pix;
 	BYTE gray;
@@ -114,7 +224,7 @@ pixel_48 Px48(FILE* input, BYTE is64) {
 	return pix;
 }
 
-//16 Bit per pixel
+//Monochromizing 2-byte pixels
 void Pix16(DWORD height, DWORD width, FILE* input, FILE* output) {
 	pixel_16 pix;
 	pixel_24 pix24; //using pix24 for better understanding of 16-pix pixel.
@@ -138,7 +248,7 @@ void Pix16(DWORD height, DWORD width, FILE* input, FILE* output) {
 	}
 }
 
-//24 or 32 Bit per pixel 
+//Monochromizing 3- or 4-byte pixels
 void Pix24(DWORD height, DWORD width, FILE* input, FILE* output, BYTE is32) { 
 	pixel_24 pix;
 	BYTE additional = 0;
@@ -153,7 +263,7 @@ void Pix24(DWORD height, DWORD width, FILE* input, FILE* output, BYTE is32) {
 	}
 }
 
-//48 or 64 Bit per pixel: Changing all 'BYTE' variables in pixel to 'WORD' (2-byte) variables
+//Monochromizing 6- or 8-byte pixels: Changed all 'BYTE' variables in pixel to 'WORD' (2-byte) variables
 void Pix48(DWORD height, DWORD width, FILE* input, FILE* output, BYTE is64) {
 	pixel_48 pix;
 	WORD gray;
@@ -164,7 +274,6 @@ void Pix48(DWORD height, DWORD width, FILE* input, FILE* output, BYTE is64) {
 			pix = Px48(input, is64);
 			PixWrite48(output, pix, is64);
 		}
-		additional = 0;
 		fwrite(&additional, sizeof(BYTE), additionalBytes, output);
 		fseek(input, additionalBytes, SEEK_CUR);
 	}
