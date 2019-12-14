@@ -141,7 +141,7 @@ void monochromize(IOFiles inOut, InfoBMP BMP) {
 
 	_fcloseall();
 
-	printf("Monochromization complete.");
+	printf("Monochromization complete. Change added.");
 	_getch();
 }
 
